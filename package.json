@@ -1,5 +1,5 @@
 {
-  "name": "I Sound",
+  "name": "isound",
   "version": "1.0.0",
   "description": "A H5-based music player",
   "main": "main.js",
@@ -36,7 +36,7 @@
         {
           "name": "@electron-forge/maker-squirrel",
           "config": {
-            "name": "electron_quick_start"
+            "name": "ISound"
           }
         },
         {
