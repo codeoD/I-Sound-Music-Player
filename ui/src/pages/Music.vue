@@ -226,7 +226,6 @@ import PlusSquareTwoTone from "@ant-design/icons-vue/PlusSquareTwoTone";
 import PlusCircleTwoTone from "@ant-design/icons-vue/PlusCircleTwoTone";
 import Modal from "../components/Modal.vue";
 import Notification from "../components/Notification.vue";
-import { Howl, Howler } from "howler";
 import { computed } from "@vue/reactivity";
 
 // todo： 信息整合  歌曲播放统计信息  性能优化：一些鼠标操作事件回调的优化处理

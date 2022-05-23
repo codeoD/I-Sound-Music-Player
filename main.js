@@ -4,8 +4,7 @@ const path = require("path");
 const { opendir, readdir } = require("fs/promises");
 const { opendirSync, writeFileSync, readFileSync, existsSync } = require("fs");
 const { getFilesFromDir } = require("./utils");
-const spawn = require("child_process").spawn;
-const { Howl, Howler } = require("howler");
+// const spawn = require("child_process").spawn;
 
 let sheetFileContent = {};
 

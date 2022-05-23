@@ -1,14 +1,14 @@
 {
-  "name": "electron-quick-start",
+  "name": "I Sound",
   "version": "1.0.0",
-  "description": "A minimal Electron application",
+  "description": "A H5-based music player",
   "main": "main.js",
   "scripts": {
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make"
   },
-  "repository": "https://github.com/electron/electron-quick-start",
+  "repository": "https://github.com/codeoD/I-Sound-Music-Player",
   "keywords": [
     "Electron",
     "quick",
@@ -27,9 +27,7 @@
     "electron": "^18.2.3"
   },
   "dependencies": {
-    "electron-squirrel-startup": "^1.0.0",
-    "ffmetadata": "^1.7.0",
-    "howler": "^2.2.3"
+    "electron-squirrel-startup": "^1.0.0"
   },
   "config": {
     "forge": {
