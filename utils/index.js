@@ -1,20 +1,5 @@
 const { opendirSync, readdirSync } = require("fs");
-const ffmetadata = require("ffmetadata");
 const path = require("path");
-ffmetadata.setFfmpegPath(path.join(__dirname, "../ffmpeg/bin/ffmpeg"));
-
-async function getFileInfo(path) {
-  return await new Promise((resolve, reject) => {
-    ffmetadata.read(path, (err, data) => {
-      res = data;
-      if (err) {
-        reject(err);
-      } else {
-        resolve(data);
-      }
-    });
-  });
-}
 
 module.exports = {
   /**
