@@ -1,0 +1,12 @@
+/* styles.css */
+
+/* Add styles here to customize the appearance of your app */
+
+.app {
+}
+.main-ui {
+  display: flex;
+}
+.songs-list {
+  width: 45%;
+}

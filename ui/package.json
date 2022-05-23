@@ -1,0 +1,20 @@
+{
+  "name": "ui",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "vite --mode prd",
+    "build": "vite build --mode prd",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@ant-design/icons-vue": "^6.1.0",
+    "howler": "^2.2.3",
+    "vue": "^3.2.25"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^2.3.3",
+    "sass": "^1.51.0",
+    "vite": "^2.9.9"
+  }
+}
