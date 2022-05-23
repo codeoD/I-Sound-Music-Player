@@ -738,7 +738,7 @@ export default defineComponent({
       });
     }
 
-    // 这里是electronAPI的调用;
+    // 这里是electronAPI的调用
     // 添加歌单
     electronAPI?.onStartAddSheet(() => {
       isShowAddSheetModal.value = true;
@@ -749,28 +749,6 @@ export default defineComponent({
     electronAPI?.onAddedSongs((e, songs) => {
       sheetList[0].songs.push(...songs);
     });
-    electronAPI?.onWindowWillClose(() => {});
-
-    // faker data
-    // if (import.meta.env.DEV) {
-    //   sheetList.push({
-    //     name: "ggh",
-    //     songs: [
-    //       {
-    //         innerName: "dada",
-    //         realName:
-    //           "st-2.amazonaws.com/s.cdpn.io/858/outfoxst-2.amazonaws.com/s.cdpn.io/858/outfox.mp3",
-    //         source:
-    //           "https://s3-us-west-2.amazonaws.com/s.cdpn.io/858/outfoxing.mp3",
-    //       },
-    //       {
-    //         innerName: "34adsa",
-    //         realName: "4fsfsf.mp3",
-    //         source: "F:\\music\\test\\Fade-Alan Walker.mp3",
-    //       },
-    //     ],
-    //   });
-    // }
 
     return {
       sheetList,
