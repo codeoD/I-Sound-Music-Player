@@ -20,7 +20,9 @@
     <div class="app-name">I Sound</div>
     <div>
       Author:
-      <a href="">codeoD</a>
+      <a href="https://github.com/codeoD/I-Sound-Music-Player" id="about"
+        >codeoD</a
+      >
     </div>
     <div>Electron: <span id="electron-version"></span></div>
     <div>Chromium: <span id="chrome-version"></span></div>
@@ -28,4 +30,10 @@
     <div>V8: <span id="v8-version"></span></div>
     <div>OS: <span id="os-version"></span></div>
   </body>
+  <script>
+    document.getElementById("about").addEventListener("click", (e) => {
+      e.preventDefault();
+      eAPI?.openURL(e.target.href);
+    });
+  </script>
 </html>

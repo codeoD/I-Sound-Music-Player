@@ -8,7 +8,6 @@
             <play-circle-two-tone
               v-if="sheet.songs.length > 0"
               @click="playAll(sheet.songs)"
-              two-tone-color="#52c41a"
               title="播放全部"
             />
           </span>
@@ -17,14 +16,19 @@
           <li v-for="song in sheet.songs" :key="song.innerName">
             <div class="song-item">
               <div class="song-info">
-                <span class="song-name">{{ song.realName }}</span>
-                <span class="song-singer">{{ "zdas1d" }}</span>
+                <span
+                  :class="{
+                    'song-name': true,
+                    'active-song': playingSong.name === song.name,
+                  }"
+                  >{{ song.name }}</span
+                >
+                <span class="song-singer">{{ song.artist }}</span>
               </div>
               <span class="operation-icons">
                 <play-circle-two-tone
                   v-show="playingSong.source !== song.source"
                   @click="() => handleOperation('play', song)"
-                  two-tone-color="#52c41a"
                 />
                 <pause-circle-two-tone
                   @click="() => handleOperation('pause', song)"
@@ -33,6 +37,10 @@
                 <plus-square-two-tone
                   @click="showSheetChoice(song)"
                   title="添加歌曲到歌单"
+                />
+                <MinusSquareTwoTone
+                  @click="deleteSongFromSheetList(song.source, sheet.id)"
+                  title="从歌单中移除歌曲"
                 />
                 <plus-circle-two-tone
                   @click="addSong2playlist(song)"
@@ -45,15 +53,34 @@
       </div>
     </div>
     <div class="play-ui">
-      <ul v-show="isShowPlaylist" class="play-list">
+      <div class="lyric-info">
+        <div class="lyric-data">
+          <p
+            :class="{
+              'active-lrc': i === playingSong.activeLrcIndex,
+              'lyric-item': true,
+            }"
+            v-for="(p, i) in playingSong.lrc"
+            :key="p.time"
+          >
+            {{ p.lrc }}
+          </p>
+        </div>
+      </div>
+      <ul
+        :class="{
+          'play-list': true,
+          'play-list-show': isShowPlaylist,
+        }"
+      >
         <li class="" v-for="(song, i) in playlist" :key="song.source">
           <div class="play-list-item">
-            <div>{{ i + 1 }}</div>
+            <!-- <div>{{ i + 1 }}</div> -->
             <div
               class="song-name"
-              :class="{ active: playingSong.source === song.source }"
+              :class="{ 'active-song': playingSong.source === song.source }"
             >
-              {{ song.realName }}
+              {{ song.name }}
             </div>
           </div>
         </li>
@@ -76,7 +103,7 @@
       <div class="song-playing-info">
         <div class="song-name">{{ playingSong.name || "I SOUND" }}</div>
         <div class="duration">
-          {{ playingSong.current }} / {{ playingSong.total }}
+          {{ sec2min(playingSong.current) }} / {{ playingSong.total }}
         </div>
       </div>
       <div class="bar" id="bar" @dragstart="(e) => e.preventDefault()">
@@ -132,7 +159,9 @@
         ></span>
       </a>
       <div class="icon list" @click="isShowPlaylist = !isShowPlaylist">
-        <span class="num">{{ playlist.length }}</span>
+        <span class="num">{{
+          playlist.length > 99 ? "99+" : playlist.length
+        }}</span>
       </div>
       <!-- 控制面板 -->
       <div class="mode-choosen-panel" v-show="isShowModePanel">
@@ -219,14 +248,15 @@ import {
   createVNode,
   render,
   watchEffect,
+  computed,
 } from "vue";
 import PlayCircleTwoTone from "@ant-design/icons-vue/PlayCircleTwoTone";
 import PauseCircleTwoTone from "@ant-design/icons-vue/es/icons/PauseCircleTwoTone";
 import PlusSquareTwoTone from "@ant-design/icons-vue/PlusSquareTwoTone";
 import PlusCircleTwoTone from "@ant-design/icons-vue/PlusCircleTwoTone";
+import MinusSquareTwoTone from "@ant-design/icons-vue/MinusSquareTwoTone";
 import Modal from "../components/Modal.vue";
 import Notification from "../components/Notification.vue";
-import { computed } from "@vue/reactivity";
 
 // todo： 信息整合  歌曲播放统计信息  性能优化：一些鼠标操作事件回调的优化处理
 
@@ -250,6 +280,7 @@ export default defineComponent({
     PauseCircleTwoTone,
     PlusSquareTwoTone,
     PlusCircleTwoTone,
+    MinusSquareTwoTone,
     CustomModal: Modal,
   },
   setup() {
@@ -261,14 +292,14 @@ export default defineComponent({
     const operationStore = reactive([]);
     const sheetList = reactive([]);
     /**
-     * @type [{innerName: String, realName: String, source: String}]
+     * @type [{innerName: String, realName: String, source: String, name: String}]
      */
     const playlist = reactive([]);
     const isShowAddSheetModal = ref(false);
     const isShowPlaylist = ref(false);
     /**
      * @description 播放模式 列表循环 单曲循环 随机播放 顺序播放
-     * @type enum ['listCycle', 'singleCycle', 'random', 'order']
+     * @type
      */
     const playModeData = {
       order: {
@@ -307,6 +338,17 @@ export default defineComponent({
       source: "",
       volume: 1,
       modeIcon: computed(() => playModeData[playingSong.mode].icon),
+      activeLrcIndex: computed(() => {
+        const { current, lrc } = playingSong;
+        const curr = Number.parseFloat(current); //transformMin2Sec(current);
+        return lrc.findLastIndex((v, i) => {
+          if (curr >= v.time) {
+            return true;
+          }
+          return false;
+        });
+      }),
+      lrc: [],
       // 方法
       pause: () => el.pause(),
       play: () => el.play(),
@@ -322,6 +364,16 @@ export default defineComponent({
           randomPlayModeData.willPlaySongs = [...playlist];
         }
       }
+    );
+    watch(
+      () => playingSong.activeLrcIndex,
+      (curr, prev) => {
+        if (curr > 0) {
+          const top = 150 - curr * 32;
+          lrcEl.setAttribute("style", `top: ${top}px`);
+        }
+      },
+      { immediate: false }
     );
     const addedSheetName = ref("");
     // 歌单中选中的正在操作的歌曲
@@ -350,6 +402,8 @@ export default defineComponent({
      * @type HTMLAudioElement
      */
     let el = ref();
+
+    let lrcEl;
     // 生命周期函数
     onMounted(() => {
       el = document.querySelector("audio");
@@ -358,14 +412,15 @@ export default defineComponent({
       footerPosY = document.querySelector(".footer-ui").getClientRects()[0].y;
       volumIconHead = document.querySelector(".icon-playbar-volumehead");
       progressBarEl = document.querySelector(".barProgress");
+      lrcEl = document.querySelector(".lyric-data");
 
       el.addEventListener("canplay", () => {
-        playingSong.total = sec2min(Math.floor(el.duration));
+        playingSong.total = sec2min(Math.round(el.duration));
       });
       el.addEventListener("timeupdate", () => {
         // 移动位置图标
         if (!playPosControlData.isMouseDown) {
-          playingSong.current = sec2min(Math.round(el.currentTime));
+          playingSong.current = el.currentTime.toFixed(2);
           progressBarHeadEl.style.marginLeft = `${
             (el.currentTime * 100) / el.duration
           }%`;
@@ -386,6 +441,8 @@ export default defineComponent({
         playModeData[playingSong.mode].play();
         // 进度条归0
         progressBarEl.style.width = `0%`;
+        // 歌词回归原位
+        lrcEl.setAttribute("style", "top: 150px");
       });
       el.addEventListener("volumechange", (e, v) => {
         console.log("vol", e);
@@ -433,28 +490,10 @@ export default defineComponent({
      * @returns String
      */
     function sec2min(time) {
-      const min = Math.floor(time / 60);
-      const sec = time % 60;
+      const timeData = Number.parseFloat(time).toFixed();
+      const min = Math.floor(timeData / 60);
+      const sec = timeData % 60;
       return `${min < 10 ? "0" + min : min}:${sec < 10 ? "0" + sec : sec}`;
-    }
-    /**
-     * @description 保留两位小数
-     * @param {Number} num
-     * @returns String
-     */
-    function saveTwoDecimal(num) {
-      let str = num.toString();
-      const [intNum, decimal] = str.split(".");
-      if (decimal === undefined || decimal.length === 0) return num + ".00";
-      if (decimal.length === 1) return num + "0";
-      if (decimal.length === 2) return num;
-      return (
-        intNum +
-        "." +
-        (Number(decimal.slice(2, 3)) >= 5
-          ? Number(decimal.slice(0, 2)) + 1
-          : decimal.slice(0, 2))
-      );
     }
 
     /**
@@ -471,10 +510,37 @@ export default defineComponent({
     function playSong(song) {
       el.pause();
       el.src = song.source;
-      playingSong.name = song.realName;
+      playingSong.name = song.name;
       playingSong.source = song.source;
       el.play();
+      // 获取歌词
+      setLyric(song);
     }
+    // 获取歌词
+    async function setLyric(song) {
+      const lrcStr = await electronAPI?.getLyric(song.lrcPath);
+      const temp = lrcStr
+        .split("\n")
+        .map((v) => {
+          const [time, lrc] = v.replace(/\[(.*)\](.*)/g, "$1--$2").split("--");
+          if (!/^\d/.test(time)) return null;
+          const timeData = time.split(".");
+          return {
+            time:
+              transformMin2Sec(timeData[0]) +
+              Number.parseFloat("." + timeData[1]),
+            lrc,
+          };
+        })
+        .filter((v) => !!v);
+      playingSong.lrc = [...temp];
+    }
+    // 分钟时间转秒
+    function transformMin2Sec(str) {
+      const [min, sec] = str.split(":");
+      return Number.parseFloat(min) * 60 + Number.parseFloat(sec);
+    }
+
     // 设置音量
     function setVolume(num) {
       el.volume = num;
@@ -507,7 +573,6 @@ export default defineComponent({
      * @param {PointerEvent} e
      */
     function choosePlayMode(e) {
-      console.log(e);
       /**
        * @type HTMLLIElement
        */
@@ -554,7 +619,6 @@ export default defineComponent({
           nextBarPos =
             currentBarPos === 0 ? currentBarPos : e.movementX + currentBarPos;
         }
-        console.log(e.movementX, currentBarPos, nextBarPos, nextBarPos / 370);
         if (nextBarPos) {
           progressBarHeadEl.style.marginLeft = `${nextBarPos}px`;
           playPosControlData.currenrtPos = nextBarPos;
@@ -638,7 +702,6 @@ export default defineComponent({
     function showSheetChoice(song) {
       selectedSong.value = song;
       if (chooseableSheets.value.length === 0) {
-        console.log("所有歌单已包含此歌曲");
         notify({ info: "所有歌单已包含此歌曲", type: "info" });
         return;
       }
@@ -647,7 +710,7 @@ export default defineComponent({
     /**
      *
      * @description 播放全部歌曲
-     * @param {Array<{realName: string, source: string, innerName: string}>} songs
+     * @param {Array<{realName: string, source: string, innerName: string, name:String}>} songs
      * @returns void
      */
     function playAll(songs) {
@@ -699,6 +762,23 @@ export default defineComponent({
       const sheet = sheetList.filter((v) => v.name === selectedSheetName.value);
       sheet[0].songs.push(selectedSong.value);
     }
+
+    /**
+     * @description 从歌单中移除歌曲
+     * @param {*} song
+     * @param {*} sheet
+     */
+    function deleteSongFromSheetList(source, id) {
+      console.log(sheetList, source, id);
+      const sheet = sheetList.find((sheet) => sheet.id === id);
+      const index = sheet.songs.findIndex((song) => song.source === source);
+      sheet.songs.splice(index, 1);
+    }
+
+    /**
+     * @description 添加歌曲到播放列表
+     * @param {*} song
+     */
     function addSong2playlist(song) {
       const i = playlist.findIndex((v) => v.source === song.source);
       if (i === -1) {
@@ -708,6 +788,7 @@ export default defineComponent({
         playlist.push(song);
       }
     }
+
     function handleSongRightClick(song) {
       // 调用electronAPI
     }
@@ -725,17 +806,13 @@ export default defineComponent({
       }
     }
     // 新建歌单
-    function addSheet() {
-      console.log(addedSheetName.value);
+    async function addSheet() {
       if (sheetList.findIndex((v) => v.name === addedSheetName.value) > -1) {
         window.alert("存在相同名称的歌单，请重新添加");
         return;
       }
-      sheetList.push({
-        name: addedSheetName.value,
-        type: "custom",
-        songs: [],
-      });
+      const data = await electronAPI?.addSheet(addedSheetName.value);
+      sheetList.push(data);
     }
 
     // 这里是electronAPI的调用
@@ -747,7 +824,10 @@ export default defineComponent({
       sheetList.push(...data?.children);
     });
     electronAPI?.onAddedSongs((e, songs) => {
-      sheetList[0].songs.push(...songs);
+      sheetList[0].songs = Array.from(new Set(songs, sheetList[0].songs));
+    });
+    electronAPI?.clearPlaylist(() => {
+      playlist.length = 0;
     });
 
     return {
@@ -779,6 +859,8 @@ export default defineComponent({
       toggleMuted,
       choosePlayMode,
       startAdjustPlayPostion,
+      sec2min,
+      deleteSongFromSheetList,
     };
   },
 });
@@ -788,11 +870,13 @@ export default defineComponent({
   display: flex;
   flex: 1;
   overflow: hidden;
+
   .sheet-ui {
     width: 25%;
     padding: 12px;
     overflow-y: auto;
     overflow-x: hidden;
+
     .sheet-item {
       .sheet-head {
         display: flex;
@@ -800,40 +884,51 @@ export default defineComponent({
         color: #f15fe6;
       }
     }
+
     .songs-list {
       list-style-type: none;
       padding-inline-start: 0;
+
       li {
         padding: 4px 0;
+
         .song-item {
           position: relative;
           display: flex;
           align-items: center;
           width: 100%;
           gap: 16px;
+
           .song-info {
             display: flex;
             width: 100%;
             // flex: 1;
             flex-direction: column;
+
             .song-name {
               font-size: 16px;
               width: 100%;
               overflow: hidden;
               text-overflow: ellipsis;
               white-space: nowrap;
+              padding: 4px 0;
+              color: #18bbc3;
             }
+
             .song-singer {
               font-size: 13px;
               padding-left: 8px;
+              color: #966faf;
             }
           }
+
           .operation-icons {
             position: absolute;
-            top: 0;
+            top: 50%;
             right: -100vw;
             display: flex;
             gap: 8px;
+            transform: translateY(-50%);
             // padding-left: 8px;
             .anticon {
               font-size: 20px;
@@ -841,20 +936,24 @@ export default defineComponent({
             }
           }
         }
+
         .song-item:hover,
         .song-item.active {
           .song-info {
-            width: 75%;
+            width: 60%;
             transition: all 0.5s;
           }
+
           .operation-icons {
             animation: operations-icon-in 0.5s forwards;
           }
         }
+
         @keyframes operations-icon-in {
           0% {
             right: -20%;
           }
+
           100% {
             right: 0;
           }
@@ -862,10 +961,13 @@ export default defineComponent({
       }
     }
   }
+
   .play-ui {
     position: relative;
+    display: flex;
     flex: 1;
     padding: 20px;
+
     &::after {
       position: absolute;
       top: 0;
@@ -878,26 +980,70 @@ export default defineComponent({
       background-position: center;
       z-index: -1;
     }
+    .lyric-info {
+      height: 100%;
+      overflow: hidden;
+      position: relative;
+      flex: 1;
+      overflow-y: hidden;
+    }
+    .lyric-info:hover {
+      overflow-y: auto;
+    }
+
+    .lyric-data {
+      position: absolute;
+      top: 150px;
+      width: 100%;
+      transition: top 0.5s;
+      text-align: center;
+      overflow-y: auto;
+      color: #e74ee9;
+      text-shadow: 0px 0px 4px #fff;
+      .active-lrc {
+        color: rgb(72, 168, 77);
+      }
+      .lyric-item {
+        height: 24px;
+        padding: 4px 0;
+      }
+    }
+
     .play-list {
       float: right;
-      width: 20vw;
-      list-style-type: none;
+      width: 0;
+      counter-reset: listCounter;
+      transition: width 0.3s linear;
+      overflow-y: auto;
       .play-list-item {
         display: flex;
         gap: 12px;
         padding: 4px 0;
+        color: #8a8a8a;
+
         .order-num {
         }
+
         .song-name {
           width: 240px;
           overflow: hidden;
           white-space: nowrap;
           text-overflow: ellipsis;
         }
+        .song-name::before {
+          counter-increment: listCounter 1;
+          content: counter(listCounter);
+          color: #8a8a8a;
+          margin-right: 12px;
+        }
       }
+    }
+    .play-list.play-list-show {
+      width: 20vw;
     }
   }
 }
+
 .footer-ui {
   position: relative;
   display: flex;
@@ -907,17 +1053,20 @@ export default defineComponent({
   justify-content: center;
   background: #333;
   user-select: none;
+
   //   filter: blur(90px);
   .controls-left {
     width: 160px;
     height: 80px;
   }
+
   .icon {
     display: block;
     cursor: pointer;
     background: url(../assets/btn.png);
     background-repeat: no-repeat;
   }
+
   .icon-playbar-prev {
     display: block;
     position: absolute;
@@ -925,133 +1074,161 @@ export default defineComponent({
     margin-top: 22px;
     background-position: 0 -143px;
   }
+
   .icon-playbar-prev:hover {
     background-position: -36px -143px;
   }
+
   .icon-playbar-next {
     position: absolute;
     margin-left: 117px;
     margin-top: 22px;
     background-position: -144px -143px;
   }
+
   .icon-playbar-next:hover {
     background-position: -180px -143px;
   }
+
   .icon-playbar-prev,
   .icon-playbar-next {
     width: 36px;
     height: 36px;
   }
+
   .icon-playbar-play {
     position: absolute;
     margin-left: 43px;
     margin-top: 10px;
   }
+
   .icon-playbar-pause {
     position: absolute;
     margin-left: 43px;
     margin-top: 10px;
     background-position: 0 -60px;
   }
+
   .icon-playbar-play:hover {
     background-position: -60px 0;
   }
+
   .icon-playbar-pause:hover {
     background-position: -60px -60px;
   }
+
   .icon-playbar-pause,
   .icon-playbar-play {
     width: 60px;
     height: 60px;
   }
+
   .controls-bar {
     width: 370px;
     height: 80px;
+
     .song-playing-info {
       padding-top: 18px;
       height: 24px;
       cursor: default;
       display: flex;
       color: #c4c3c3;
+
       div.song-name {
         flex: 1;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
+
       .duration {
         float: right;
         opacity: 0.4;
       }
     }
+
     .bar {
       margin-top: 11px;
       height: 5px;
       cursor: pointer;
     }
+
     .bar .bg {
       position: relative;
       background: 0 0;
       cursor: pointer;
       height: 3px;
+
       .icon-playbar-bgleft {
         position: absolute;
         background-position: -217px -200px;
       }
+
       .icon-playbar-bgleft,
       .icon-playbar-bgright,
       .icon-playbar-progressleft {
         width: 2px;
         height: 3px;
       }
+
       .bg-middle {
         position: absolute;
         margin-left: 2px;
         width: 370px;
         height: 3px;
       }
+
       .barBG {
         background: url(../assets/progress_bg_middle.png) repeat-x top left;
       }
+
       .icon-playbar-bgright {
         position: absolute;
         margin-left: 371px;
       }
+
       .icon-playbar-bgright {
         background-position: -237px -200px;
       }
     }
+
     .bar .progress-bar {
       cursor: pointer;
       margin-top: -3px;
       height: 3px;
+
       .icon-playbar-progressleft {
         position: absolute;
         background-position: -527px -387px;
       }
+
       .progress-middle {
         position: absolute;
         margin-left: 2px;
         width: 370px;
         height: 3px;
         overflow: hidden;
+
         .progress {
           position: absolute;
           width: 1px;
           height: 3px;
           transform: translate3d(0, 0, 0);
         }
+
         .barProgress {
           background: url(../assets/progress_bar_middle.png) repeat-x top left;
           // transition: width 0.3s;
         }
       }
     }
+
     .bar .drag-playhead {
       position: absolute;
       margin-top: -8px;
       width: 371px;
       height: 12px;
+
       .icon-playbar-playhead {
         position: absolute;
         margin-left: 0;
@@ -1062,12 +1239,14 @@ export default defineComponent({
       }
     }
   }
+
   .controls-right {
     position: relative;
     display: flex;
     height: 100%;
     align-items: center;
     gap: 24px;
+
     // 播放列表
     .list {
       position: relative;
@@ -1075,19 +1254,25 @@ export default defineComponent({
       height: 23px;
       color: white;
       background-position: 0 -120px;
+
       .num {
         position: absolute;
-        right: 4px;
+        right: 0;
+        width: 36px;
+        text-align: center;
       }
     }
+
     .play-mode {
       width: 16px;
       height: 16px;
       line-height: 16px;
     }
+
     .order-mode {
       display: flex;
       align-items: center;
+
       &:hover {
         .icon-order-mode {
           border-top: 1px solid #19b5f0;
@@ -1095,6 +1280,7 @@ export default defineComponent({
         }
       }
     }
+
     .icon-order-mode {
       display: inline-block;
       height: 4px;
@@ -1102,12 +1288,14 @@ export default defineComponent({
       border-top: 1px solid #b7b2b2;
       border-bottom: 1px solid #b7b2b2;
     }
+
     .mode-choosen-panel {
       position: absolute;
       top: 0;
       transform: translate(25%, -100%);
       color: white;
       background: #262b33;
+
       ul li {
         display: flex;
         padding: 4px;
@@ -1119,6 +1307,7 @@ export default defineComponent({
         // }
       }
     }
+
     .volume-slide-panel {
       position: absolute;
       display: flex;
@@ -1130,6 +1319,7 @@ export default defineComponent({
       transform: translate(-25%, 0);
       justify-content: center;
       overflow: hidden;
+
       // &:hover {
       //   display: flex;
       // }
@@ -1140,16 +1330,19 @@ export default defineComponent({
         margin-top: 20px;
         background: #d3d3d3;
       }
+
       .volume-bg {
         position: absolute;
         cursor: pointer;
         z-index: -1;
       }
+
       .volume-fg {
         margin-top: 20px;
         cursor: pointer;
         background: #19b5f0;
       }
+
       .icon-playbar-volumehead {
         position: absolute;
         bottom: 100px;
@@ -1158,6 +1351,7 @@ export default defineComponent({
         background-position: -242px -130px;
       }
     }
+
     // #19b5f0 字体hover颜色
     // 音量控制及播放模式
     .icon-playbar-maxvox {
@@ -1165,47 +1359,60 @@ export default defineComponent({
       height: 16px;
       background-position: -64px -195px;
     }
+
     .icon-playbar-maxvox:hover {
       background-position: -80px -195px;
     }
+
     .icon-playbar-minvox {
       width: 16px;
       height: 16px;
       background-position: 0 -195px;
     }
+
     .icon-playbar-minvox:hover {
       background-position: -16px -195px;
     }
+
     .icon-playbar-silence {
       background-position: -128px -195px;
     }
+
     .icon-playbar-silence:hover {
       background-position: -144px -195px;
     }
+
     .icon-playbar-randomcycle {
       background-position: -128px -179px;
     }
+
     .icon-playbar-randomcycle:hover {
       background-position: -144px -179px;
     }
+
     .icon-playbar-singlecycle {
       background-position: 0 -179px;
     }
+
     .icon-playbar-singlecycle:hover {
       background-position: -16px -179px;
     }
+
     .icon-playbar-cycle {
       background-position: -64px -179px;
     }
+
     .icon-playbar-cycle:hover {
       background-position: -80px -179px;
     }
+
     .icon-base-style {
       width: 16px;
       height: 16px;
       line-height: 16px;
     }
   }
+
   audio.player {
     position: absolute;
     bottom: 0;
@@ -1220,7 +1427,12 @@ export default defineComponent({
 .song-name {
   // color: #d3d3d3;
 }
+
 .song-name.active {
-  color: #19b5f0;
+  // color: #19b5f0;
+}
+.active-song {
+  color: #c019df !important;
+  text-shadow: 0px 0px 1px #c019df;
 }
 </style>

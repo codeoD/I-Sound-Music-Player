@@ -1,10 +1,22 @@
 // Modules to control application life and create native browser window
-const { app, BrowserWindow, ipcMain, Menu, dialog } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Menu,
+  dialog,
+  shell,
+} = require("electron");
 const path = require("path");
-const { opendir, readdir } = require("fs/promises");
+const { opendir, readdir, readFile } = require("fs/promises");
 const { opendirSync, writeFileSync, readFileSync, existsSync } = require("fs");
-const { getFilesFromDir } = require("./utils");
+const { getFilesFromDir, addMetadata2Song } = require("./utils");
+
+// 启动本地可执行文件
 // const spawn = require("child_process").spawn;
+
+// 监听文件变化 实现自动重启和刷新，类似工具 elemon  nodemon  electron-reloader
+// const chokidar = require('chokidar');
 
 let sheetFileContent = {};
 
@@ -26,9 +38,6 @@ function createWindow() {
    * @type {{name: string, children: [{name:string, type: string, songs: Array<{source: string}>}]}}
    */
   sheetFileContent = JSON.parse(sheetFile.toString());
-  const sheetSongs = sheetFileContent.children.filter(
-    (v) => v.name === "默认歌单"
-  )[0].songs;
 
   let addedSongs = [];
 
@@ -43,19 +52,18 @@ function createWindow() {
           label: "新建歌单",
         },
         {
-          click: () => {
+          click: async () => {
             const paths = dialog.showOpenDialogSync(mainWindow, {
               title: "请选择歌曲所在文件夹",
               properties: ["openDirectory", "multiSelections"],
             });
-            console.log(paths);
             if (paths?.length > 0) {
               let songs = [];
               paths.forEach((path) => {
                 const tempSongs = getFilesFromDir(path);
                 songs = songs.concat(tempSongs);
               });
-              console.log("songs:", songs);
+              await addMetadata2Song(songs);
               addedSongs = addedSongs.concat(songs);
               mainWindow.webContents.send("added-songs", songs);
             } else {
@@ -63,17 +71,40 @@ function createWindow() {
           },
           label: "导入歌曲",
         },
+        {
+          label: "清空播放列表",
+          click: () => {
+            mainWindow.webContents.send("clear-playlist");
+          },
+        },
       ],
     },
     {
-      label: "关于",
-      click: () => {
-        createAboutWindow();
-      },
+      label: "帮助",
+      submenu: [
+        {
+          label: "设置",
+          enabled: false,
+          click: () => {},
+        },
+        {
+          label: "关于",
+          click: () => {
+            // app.showAboutPanel();
+            createAboutWindow();
+          },
+        },
+      ],
     },
+    // {
+    //   label: "刷新页面",
+    //   click: () => mainWindow.webContents.reload(), //reloadIgnoringCache(),
+    // },
   ]);
 
   Menu.setApplicationMenu(menu);
+  // 打开控制台
+  // mainWindow.webContents.openDevTools();
 
   // and load the index.html of the app.
   mainWindow.loadFile("./renderer/index.html").then(() => {
@@ -132,8 +163,10 @@ app.whenReady().then(() => {
             name: "默认歌单",
             type: "default",
             songs: [],
+            id: `${Date.now()}_0`,
           },
         ],
+        nextId: 1,
       })
     );
   }
@@ -143,6 +176,36 @@ app.whenReady().then(() => {
     console.log(...v);
   });
 
+  ipcMain.handle("get-lyric", (e, lrcPath) => {
+    try {
+      const fileContent = readFileSync(lrcPath, {
+        encoding: "utf-8",
+      });
+      return fileContent;
+    } catch (error) {
+      return "暂无歌词";
+    }
+  });
+
+  ipcMain.handle("add-sheet", (e, sheetName) => {
+    sheetFileContent.children.push({
+      name: sheetName,
+      type: "custom",
+      songs: [],
+      id: `${Date.now()}_${sheetFileContent.nextId}`,
+    });
+    return {
+      name: sheetName,
+      type: "custom",
+      songs: [],
+      id: `${Date.now()}_${sheetFileContent.nextId}`,
+    };
+  });
+
+  ipcMain.on("open-url", (e, url) => {
+    shell.openExternal(url);
+  });
+
   const { mainWindow: mainWin } = createWindow();
 
   // BrowserWindow 关闭后执行持久化操作
@@ -150,7 +213,6 @@ app.whenReady().then(() => {
     // mainWin.webContents.send("window-will-close");
   });
   ipcMain.handle("update-json", (e, data) => {
-    console.log(data);
     sheetFileContent.children = JSON.parse(data);
     writeFileSync(sheetPath, JSON.stringify(sheetFileContent));
   });
