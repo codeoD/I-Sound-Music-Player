@@ -3,3 +3,4 @@ renderer
 sheet.json
 package-lock.json
 out/
+dist/
