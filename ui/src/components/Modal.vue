@@ -15,8 +15,8 @@
           <slot name="body"></slot>
         </div>
         <div class="bottom">
-          <span @click="dealConfirm">确定</span
-          ><span @click="dealClose">关闭</span>
+          <span class="btn" @click="dealConfirm">确定</span
+          ><span class="btn" @click="dealClose">关闭</span>
         </div>
       </div>
     </div>
@@ -93,6 +93,16 @@ export default defineComponent({
       display: flex;
       justify-content: flex-end;
       gap: 16px;
+      span.btn {
+        padding: 2px 8px;
+        border: 1px solid #b9a8a8;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .btn:hover {
+        color: #fff;
+        background: #19b5f0;
+      }
     }
   }
 }
