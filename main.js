@@ -8,7 +8,7 @@ const {
   shell,
 } = require("electron");
 const path = require("path");
-const { opendir, readdir, readFile } = require("fs/promises");
+const { opendir } = require("fs/promises");
 const { opendirSync, writeFileSync, readFileSync, existsSync } = require("fs");
 const { getFilesFromDir, addMetadata2Song } = require("./utils");
 
@@ -31,7 +31,7 @@ function createWindow() {
   });
 
   // 歌单路径
-  const sheetPath = path.join(__dirname + "/sheet.json");
+  const sheetPath = path.resolve(__dirname, "../../sheet.json");
   // 当前歌单的默认歌曲
   const sheetFile = readFileSync(sheetPath);
   /**
@@ -151,8 +151,8 @@ function createAboutWindow() {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
-  // 检测是否存在歌单文件
-  const sheetPath = path.join(__dirname + "/sheet.json");
+  // 检测是否存在歌单文件, 打包后asar文件不可修改，所以把歌单文件放在安装目录下
+  const sheetPath = path.resolve(__dirname, "../../sheet.json");
   if (!existsSync(sheetPath)) {
     writeFileSync(
       sheetPath,

@@ -7,7 +7,10 @@
     "start": "electron-forge start",
     "package": "electron-forge package",
     "make": "electron-forge make",
-    "build": "electron-packager ./ isound --icon=./icon.ico --out=./dist --overwrite"
+    "build": "electron-packager ./ isound --icon=./icon.ico --out=./dist --overwrite",
+    "setup": "electron-installer-windows --config ./config/setup.config.json",
+    "gen": "electron-builder --config ./config/electron-builder.json5",
+    "asar": "asar pack ./dist/isound-win32-x64/resources/app ./dist"
   },
   "repository": "https://github.com/codeoD/I-Sound-Music-Player",
   "keywords": [
@@ -25,8 +28,11 @@
     "@electron-forge/maker-rpm": "^6.0.0-beta.63",
     "@electron-forge/maker-squirrel": "^6.0.0-beta.63",
     "@electron-forge/maker-zip": "^6.0.0-beta.63",
+    "asar": "^3.1.0",
     "chokidar": "^3.5.3",
     "electron": "^18.2.3",
+    "electron-builder": "^23.0.3",
+    "electron-installer-windows": "^3.0.0",
     "electron-packager": "^15.5.1"
   },
   "dependencies": {

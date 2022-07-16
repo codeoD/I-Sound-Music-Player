@@ -1,0 +1,18 @@
+{
+  appId: "com.lee.isound",
+  // asar: false,
+  directories: {
+    buildResources: "./public",
+  },
+  nsis: {
+    oneClick: false,
+    allowToChangeInstallationDirectory: true,
+    deleteAppDataOnUninstall: false,
+    displayLanguageSelector: true,
+    installerLanguages: ["en_US", "zh_CN"],
+    warningsAsErrors: false,
+  },
+  win: {
+    icon: "./icon.ico",
+  },
+}

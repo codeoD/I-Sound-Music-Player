@@ -1,0 +1,7 @@
+{
+  "dest": "./dist/installers/",
+  "icon": "./icon.ico",
+  "homepage": "https://github.com/codeoD/I-Sound-Music-Player",
+  "tags": ["music player"],
+  "src": "./dist/isound-win32-x64/"
+}
